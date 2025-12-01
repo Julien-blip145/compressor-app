@@ -1,39 +1,50 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Compresser un fichier</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compressor App</title>
+
+    <!-- Code AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9741695249172013"
+        crossorigin="anonymous"></script>
+
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 600px;
-            margin: 50px auto;
-            padding: 20px;
-            background-color: #f7f7f7;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            background-color: #f9f9f9;
+            text-align: center;
+            padding: 50px;
         }
-        h1 { text-align: center; }
-        form { display: flex; flex-direction: column; gap: 15px; }
-        input[type="file"], select, button { padding: 10px; font-size: 16px; }
+        .upload-box {
+            margin: 20px auto;
+            padding: 20px;
+            border: 2px dashed #ccc;
+            width: 300px;
+            background-color: #fff;
+            border-radius: 10px;
+        }
+        .upload-box input[type="file"] {
+            margin-bottom: 10px;
+        }
         button {
-            cursor: pointer;
-            background-color: #28a745;
+            padding: 10px 20px;
+            background-color: #007bff;
             color: white;
             border: none;
             border-radius: 5px;
-            transition: 0.3s;
+            cursor: pointer;
         }
-        button:hover { background-color: #218838; }
-        .flash { color: red; text-align: center; }
-
-        /* Barre de progression stylée */
-        .progress-container {
-            background-color: #e0e0e0;
+        button:hover {
+            background-color: #0056b3;
+        }
+        .progress {
+            width: 100%;
+            background-color: #eee;
             border-radius: 5px;
             overflow: hidden;
-            height: 20px;
             margin-top: 10px;
+            height: 20px;
         }
         .progress-bar {
             height: 100%;
@@ -42,161 +53,45 @@
             text-align: center;
             color: white;
             line-height: 20px;
-            transition: width 0.3s;
-        }
-
-        /* Affichage taille */
-        #sizeInfo {
-            margin-top: 10px;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        #compressionStatus {
-            margin-top: 10px;
-            text-align: center;
-            font-weight: bold;
-        }
-
-        /* Spinner */
-        .spinner {
-            margin: 10px auto;
-            width: 30px;
-            height: 30px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #007bff;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            display: none;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        #loadingMessage {
-            text-align: center;
-            font-weight: bold;
-            margin-top: 5px;
-            display: none;
         }
     </style>
 </head>
 <body>
-    <h1>Compresser un fichier</h1>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            <div class="flash">
-                {% for category, message in messages %}
-                    <p>{{ message }}</p>
-                {% endfor %}
-            </div>
-        {% endif %}
-    {% endwith %}
+    <h1>Compressor App</h1>
+    <p>Compressez vos fichiers facilement !</p>
 
-    <form id="uploadForm" action="/compress" method="post" enctype="multipart/form-data">
-        <label for="file">Choisissez un fichier :</label>
-        <input type="file" name="file" id="fileInput" required>
-
-        <label for="level">Niveau de compression :</label>
-        <select name="level">
-            <option value="low">Faible (qualité élevée)</option>
-            <option value="medium" selected>Moyen</option>
-            <option value="high">Fort (compression maximale)</option>
-        </select>
-
-        <button type="submit">Compresser</button>
-
-        <div class="progress-container">
-            <div id="progressBar" class="progress-bar">0%</div>
+    <div class="upload-box">
+        <form action="/compress" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" required>
+            <select name="level">
+                <option value="low">Compression faible</option>
+                <option value="medium" selected>Compression moyenne</option>
+                <option value="high">Compression forte</option>
+            </select>
+            <br>
+            <button type="submit">Compresser</button>
+        </form>
+        <div class="progress">
+            <div class="progress-bar" id="progress-bar">0%</div>
         </div>
-
-        <div id="compressionStatus"></div>
-        <div class="spinner" id="spinner"></div>
-        <div id="loadingMessage">Ne quittez pas, compression en cours...</div>
-        <div id="sizeInfo"></div>
-    </form>
+        <p id="status">Ne quittez pas la page pendant la compression.</p>
+    </div>
 
     <script>
-        const form = document.getElementById('uploadForm');
-        const progressBar = document.getElementById('progressBar');
-        const compressionStatus = document.getElementById('compressionStatus');
-        const sizeInfo = document.getElementById('sizeInfo');
-        const spinner = document.getElementById('spinner');
-        const loadingMessage = document.getElementById('loadingMessage');
-
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const file = document.getElementById('fileInput').files[0];
-            const level = form.level.value;
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('level', level);
-
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/compress', true);
-            xhr.responseType = 'blob';
-
-            xhr.upload.onprogress = function(e) {
-                if (e.lengthComputable) {
-                    const percent = Math.round((e.loaded / e.total) * 100);
-                    progressBar.style.width = percent + '%';
-                    progressBar.textContent = percent + '%';
-                }
-            };
-
-            xhr.onloadstart = function() {
-                compressionStatus.textContent = '';
-                sizeInfo.textContent = '';
-                progressBar.style.width = '0%';
-                progressBar.textContent = '0%';
-                spinner.style.display = 'block';
-                loadingMessage.style.display = 'block';
-            };
-
-            xhr.onload = function() {
-                spinner.style.display = 'none';
-                loadingMessage.style.display = 'none';
-
-                if (xhr.status === 200) {
-                    const blob = new Blob([xhr.response], { type: file.type });
-                    const link = document.createElement('a');
-                    link.href = window.URL.createObjectURL(blob);
-                    link.download = file.name.replace(/\.[^/.]+$/, "") + "_compressed." + file.name.split('.').pop();
-                    link.click();
-
-                    const sizeBefore = xhr.getResponseHeader('X-Size-Before');
-                    const sizeAfter = xhr.getResponseHeader('X-Size-After');
-                    const percentReduction = Math.round(((sizeBefore - sizeAfter) / sizeBefore) * 100);
-
-                    function formatBytes(bytes) {
-                        if (bytes == 0) return '0 B';
-                        const k = 1024;
-                        const dm = 2;
-                        const sizes = ['B','KB','MB','GB','TB'];
-                        const i = Math.floor(Math.log(bytes) / Math.log(k));
-                        return parseFloat(bytes / Math.pow(k, i)).toFixed(dm) + ' ' + sizes[i];
-                    }
-
-                    compressionStatus.textContent = 'Compression terminée !';
-                    sizeInfo.textContent = 
-                        'Taille avant : ' + formatBytes(sizeBefore) +
-                        ' | Taille après : ' + formatBytes(sizeAfter) +
-                        ' | Réduction : ' + percentReduction + '%';
-
-                    progressBar.style.width = '0%';
-                    progressBar.textContent = '0%';
-                } else {
-                    compressionStatus.textContent = '';
-                    alert('Erreur lors de la compression');
-                }
-            };
-
-            xhr.send(formData);
-        });
+        // Exemple simple de barre de progression (simulation)
+        const progressBar = document.getElementById('progress-bar');
+        let width = 0;
+        function simulateProgress() {
+            if(width >= 100) return;
+            width += 5;
+            progressBar.style.width = width + '%';
+            progressBar.textContent = width + '%';
+            setTimeout(simulateProgress, 200);
+        }
+        simulateProgress();
     </script>
+
 </body>
 </html>
+
